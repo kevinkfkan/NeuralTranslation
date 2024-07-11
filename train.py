@@ -131,7 +131,7 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
 
         # Compute the BLEU metric
         metric = torchmetrics.BLEUScore()
-        bleu = metric(predicted, expected)
+        bleu = metric(predicted, [[text] for text in expected])
         writer.add_scalar('validation BLEU', bleu, global_step)
         writer.flush()
 
