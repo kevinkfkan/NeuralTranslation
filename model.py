@@ -1,5 +1,3 @@
-# Building a Transformer
-
 import torch
 import torch.nn as nn
 
@@ -52,11 +50,11 @@ class LayerNormalization(nn.Module):
         super().__init__()
 
         self.eps = eps
-        # Will let broadcasting handle tensor shape implicitly
+        # Will let broadcasting handle tensor shape implicitly***
         self.alpha = nn.Parameter(torch.ones(1)) # Multiplicative Usage
         self.bias = nn.Parameter(torch.zeros(1)) # Additive Usage
 
-    def forward(self, x): # Input is (batch, seq_len, d_model)
+    def forward(self, x): # (batch, seq_len, d_model)
 
         mean = x.mean(dim = -1, keepdim = True)
         std = x.std(dim = -1, keepdim = True)
@@ -116,23 +114,23 @@ class MultiHeadAttention(nn.Module):
     def forward(self, q, k, v, mask: Optional[torch.Tensor] = None):
         batch_size = q.size(0)
 
-        # 1. Linear layers
+        # Linear layers
         q = self.w_q(q)
         k = self.w_k(k)
         v = self.w_v(v)
 
-        # 2. Split into heads
+        # Split into heads
         q = q.view(batch_size, -1, self.h, self.d_k).transpose(1, 2)
         k = k.view(batch_size, -1, self.h, self.d_k).transpose(1, 2)
         v = v.view(batch_size, -1, self.h, self.d_k).transpose(1, 2)
 
-        # 3. Apply attention
+        # Apply attention
         x, self.attention_scores = self.attention(q, k, v, mask, self.dropout)
 
-        # 4. Concatenate heads
+        # Concatenate heads
         x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.h * self.d_k)
 
-        # 5. Apply final linear layer
+        # Apply final linear layer
         return self.w_o(x)
     
 class ResidualConnections(nn.Module):
@@ -222,7 +220,7 @@ class ProjectionLayer(nn.Module):
 
     def forward(self, x):
 
-        #(batch, seq_len, d_model) -> (batch, seq_len, vocab_size)
+        # (batch, seq_len, d_model) -> (batch, seq_len, vocab_size)
         return torch.log_softmax(self.proj(x), dim = -1)
 
 class Transformer(nn.Module):

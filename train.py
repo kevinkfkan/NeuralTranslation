@@ -40,7 +40,6 @@ def beam_search(model, source, source_mask, tokenizer_tgt, max_len, device, beam
             out = model.decode(encoder_output, source_mask, decoder_input, decoder_mask)
             prob = model.project(out[:, -1])
             
-            # Get top-k candidates
             top_scores, top_tokens = torch.topk(prob, beam_size, dim=1)
             
             for token, token_score in zip(top_tokens[0], top_scores[0]):
@@ -59,7 +58,6 @@ def beam_search(model, source, source_mask, tokenizer_tgt, max_len, device, beam
     if not completed_beams:
         completed_beams = beams
 
-    # Sort completed beams by score and return the best one
     best_beam = max(completed_beams, key=lambda x: x[1])
     return best_beam[0][:, 1:]  # Remove the initial pad token
 
@@ -72,12 +70,10 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
     predicted = []
 
     try:
-        # get the console window width
         with os.popen('stty size', 'r') as console:
             _, console_width = console.read().split()
             console_width = int(console_width)
     except:
-        # If we can't get the console width, use 80 as default
         console_width = 80
 
     with torch.no_grad():
@@ -98,7 +94,6 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
             model_out_tokens = [token for token in model_out_tokens if token != tokenizer_tgt.pad_id()]
             model_out_text = ''.join(tokenizer_tgt.decode(model_out_tokens))
 
-            # Check if model_out_text is empty or None
             if not model_out_text or model_out_text.isspace():
                 model_out_text = tokenizer_tgt.decode([model_out_tokens[0]]) + tokenizer_tgt.decode([tokenizer_tgt.eos_id()])
             
@@ -116,7 +111,6 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
                 break
     
     if writer:
-        # Evaluate the character error rate
         # Compute the char error rate 
         metric = torchmetrics.CharErrorRate()
         cer = metric(predicted, expected)
@@ -139,12 +133,12 @@ def run_validation(model, validation_ds, tokenizer_src, tokenizer_tgt, max_len, 
 def get_or_build_tokenizer(config, lang):
     tokenizer_path = Path(f"tokenizer_{lang}.model")
     if not tokenizer_path.exists():
-        # Create a text file with all sentences for training the tokenizer
+        # Create text file with all sentences for training the tokenizer
         with open(f"{lang}_sentences.txt", "w", encoding="utf-8") as f:
             for item in load_dataset(f"{config['datasource']}", f"{config['lang_src']}-{config['lang_tgt']}", split='train'):
                 f.write(item['translation'][lang] + "\n")
         
-        # Train the tokenizer
+        # Train tokenizer
         spm.SentencePieceTrainer.train(
             input=f"{lang}_sentences.txt",
             model_prefix=f"tokenizer_{lang}",
@@ -154,15 +148,14 @@ def get_or_build_tokenizer(config, lang):
             pad_id=0,
             unk_id=1,
             eos_id=2,
-            bos_id=3,  # We'll keep BOS, but won't use it
+            bos_id=3,  # Need BOS for some reason...
             pad_piece="[PAD]",
             unk_piece="[UNK]",
             eos_piece="[EOS]",
-            bos_piece="[BOS]",  # Define BOS piece, but we won't use it
+            bos_piece="[BOS]", 
             user_defined_symbols="[SEP],[CLS],[MASK]",
         )
     
-    # Load the trained tokenizer
     tokenizer = spm.SentencePieceProcessor()
     tokenizer.load(str(tokenizer_path))
     return tokenizer
@@ -238,7 +231,6 @@ def train_model(config):
 
     train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt = get_ds(config)
     
-    # Get the vocabulary size
     tgt_vocab_size = tokenizer_tgt.get_piece_size()
     
     model = get_model(config, tokenizer_src, tokenizer_tgt).to(device)
@@ -261,7 +253,6 @@ def train_model(config):
         else:
             print(f'No model found at {model_filename}. Starting from scratch.')
 
-    # Get the pad token ID using the appropriate method for SentencePiece
     pad_token_id = tokenizer_src.pad_id()
     
     loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token_id, label_smoothing=0.1).to(device)
@@ -310,10 +301,10 @@ def train_model(config):
 
             global_step += 1
 
-        # Run validation at the end of every epoch
+        # Run validation at end of every epoch
         run_validation(model, val_dataloader, tokenizer_src, tokenizer_tgt, config['seq_len'], device, lambda msg: batch_iterator.write(msg), global_step, writer)
         
-        # Save the model at the end of every epoch
+        # Save model at the end of every epoch
         model_filename = get_weights_file_path(config, f"{epoch:02d}")
         torch.save({
             'epoch': epoch,

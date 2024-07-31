@@ -5,7 +5,7 @@ def get_config():
     return {
         "batch_size": 8,
         "num_epochs": 50,
-        "lr": 10**-4, # Should change to higher and gradually reduce
+        "lr": 10**-4, # Not going to run enough epochs to run a lr scheduler
         "seq_len": 512,
         "d_model": 512,
         "datasource": "opus_books",
